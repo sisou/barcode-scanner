@@ -25,7 +25,11 @@ export class BarcodeScannerWeb extends WebPlugin implements BarcodeScannerPlugin
   private _backgroundColor: string | null = null;
   private _facingMode: MediaTrackConstraints = BarcodeScannerWeb._BACK;
 
-  async prepare(): Promise<void> {
+  async prepare(_options: ScanOptions): Promise<void> {
+    this._options = _options;
+    if (!!_options?.cameraDirection) {
+      this._facingMode = _options.cameraDirection === CameraDirection.BACK ? BarcodeScannerWeb._BACK : BarcodeScannerWeb._FORWARD;
+    }
     await this._getVideoElement();
     return;
   }
