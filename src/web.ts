@@ -21,12 +21,10 @@ export class BarcodeScannerWeb extends WebPlugin implements BarcodeScannerPlugin
   private _controls: IScannerControls | null = null;
   private _torchState = false;
   private _video: HTMLVideoElement = document.getElementById('video') as HTMLVideoElement;
-  private _options: ScanOptions | null = null;
   private _backgroundColor: string | null = null;
   private _facingMode: MediaTrackConstraints = BarcodeScannerWeb._BACK;
 
   async prepare(_options: ScanOptions): Promise<void> {
-    this._options = _options;
     if (!!_options?.cameraDirection) {
       this._facingMode = _options.cameraDirection === CameraDirection.BACK ? BarcodeScannerWeb._BACK : BarcodeScannerWeb._FORWARD;
     }
@@ -46,7 +44,6 @@ export class BarcodeScannerWeb extends WebPlugin implements BarcodeScannerPlugin
   }
 
   async startScan(_options: ScanOptions): Promise<ScanResult> {
-    this._options = _options;
     this._formats = [];
     _options?.targetedFormats?.forEach((format) => {
       const formatIndex = Object.keys(BarcodeFormat).indexOf(format);
@@ -219,7 +216,7 @@ export class BarcodeScannerWeb extends WebPlugin implements BarcodeScannerPlugin
         resolve({})
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: BarcodeScannerWeb._BACK })
+        const stream = await navigator.mediaDevices.getUserMedia({ video: this._facingMode })
         this._video.srcObject = stream
         await this._video.play()
       }
@@ -239,7 +236,6 @@ export class BarcodeScannerWeb extends WebPlugin implements BarcodeScannerPlugin
         track.stop();
       }
       this._video.parentElement?.remove();
-      this._video = null;
     }
   }
 }
