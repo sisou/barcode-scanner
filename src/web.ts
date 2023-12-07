@@ -20,13 +20,11 @@ export class BarcodeScannerWeb extends WebPlugin implements BarcodeScannerPlugin
   private _formats: number[] = [];
   private _controls: IScannerControls | null = null;
   private _torchState = false;
-  private _video: HTMLVideoElement | null = null;
-  private _options: ScanOptions | null = null;
+  private _video: HTMLVideoElement = document.getElementById('video') as HTMLVideoElement;
   private _backgroundColor: string | null = null;
   private _facingMode: MediaTrackConstraints = BarcodeScannerWeb._BACK;
 
   async prepare(_options: ScanOptions): Promise<void> {
-    this._options = _options;
     if (!!_options?.cameraDirection) {
       this._facingMode = _options.cameraDirection === CameraDirection.BACK ? BarcodeScannerWeb._BACK : BarcodeScannerWeb._FORWARD;
     }
@@ -46,7 +44,6 @@ export class BarcodeScannerWeb extends WebPlugin implements BarcodeScannerPlugin
   }
 
   async startScan(_options: ScanOptions): Promise<ScanResult> {
-    this._options = _options;
     this._formats = [];
     _options?.targetedFormats?.forEach((format) => {
       const formatIndex = Object.keys(BarcodeFormat).indexOf(format);
@@ -204,64 +201,26 @@ export class BarcodeScannerWeb extends WebPlugin implements BarcodeScannerPlugin
           reject(error);
         });
 
-      const body = document.body;
-      const video = document.getElementById('video');
 
-      if (!video) {
-        const parent = document.createElement('div');
-        parent.setAttribute(
-          'style',
-          'position:absolute; top: 0; left: 0; width:100%; height: 100%; background-color: black;'
-        );
-        this._video = document.createElement('video');
-        this._video.id = 'video';
-        // Don't flip video feed if camera is rear facing
-        if (this._options?.cameraDirection !== CameraDirection.BACK) {
-          this._video.setAttribute(
-            'style',
-            '-webkit-transform: scaleX(-1); transform: scaleX(-1); width:100%; height: 100%;'
-          );
-        } else {
-          this._video.setAttribute('style', 'width:100%; height: 100%;');
-        }
+      if (!this._video)
+        return reject({ message: 'video element not found. Create a video element with id="video" in your html file.' })
 
-        const userAgent = navigator.userAgent.toLowerCase();
-        const isSafari = userAgent.includes('safari') && !userAgent.includes('chrome');
+      // add with and height to video element 100%. Also add autoplay, muted and playsinline for iOS
+      this._video.setAttribute('style', 'width:100%; height: 100%; -webkit-transform: scaleX(-1); transform: scaleX(-1);');
+      this._video.setAttribute('autoplay', 'true');
+      this._video.setAttribute('muted', 'true');
+      this._video.setAttribute('playsinline', 'true');
 
-        // Safari on iOS needs to have the autoplay, muted and playsinline attributes set for video.play() to be successful
-        // Without these attributes this.video.play() will throw a NotAllowedError
-        // https://developer.apple.com/documentation/webkit/delivering_video_content_for_safari
-        if (isSafari) {
-          this._video.setAttribute('autoplay', 'true');
-          this._video.setAttribute('muted', 'true');
-          this._video.setAttribute('playsinline', 'true');
-        }
 
-        parent.appendChild(this._video);
-        body.appendChild(parent);
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+        resolve({})
 
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          const constraints: MediaStreamConstraints = {
-            video: this._facingMode,
-          };
-
-          navigator.mediaDevices.getUserMedia(constraints).then(
-            (stream) => {
-              //video.src = window.URL.createObjectURL(stream);
-              if (this._video) {
-                this._video.srcObject = stream;
-                this._video.play();
-              }
-              resolve({});
-            },
-            (err) => {
-              reject(err);
-            }
-          );
-        }
-      } else {
-        reject({ message: 'camera already started' });
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: this._facingMode })
+        this._video.srcObject = stream
+        await this._video.play()
       }
+      catch (err) { reject(err) }
     });
   }
 
@@ -276,8 +235,6 @@ export class BarcodeScannerWeb extends WebPlugin implements BarcodeScannerPlugin
         var track = tracks[i];
         track.stop();
       }
-      this._video.parentElement?.remove();
-      this._video = null;
     }
   }
 }
