@@ -235,7 +235,6 @@ export class BarcodeScannerWeb extends WebPlugin implements BarcodeScannerPlugin
         var track = tracks[i];
         track.stop();
       }
-      this._video.parentElement?.remove();
     }
   }
 }
